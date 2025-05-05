@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import DynamicPage from '@/components/pages/DynamicPage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useScrollToTop } from '@/hooks/useScrollToTop';
 
 const PageRoute = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -11,6 +12,9 @@ const PageRoute = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  
+  // Use the scroll to top hook
+  useScrollToTop();
 
   useEffect(() => {
     const fetchPageContent = async () => {

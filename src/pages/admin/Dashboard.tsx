@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRightIcon, UserRound, FileText, ShoppingCart } from 'lucide-react';
+import { ArrowRightIcon, UserRound, FileText, ShoppingCart, Upload } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -183,6 +183,14 @@ const AdminDashboard = () => {
               >
                 <FileText className="mr-2 h-4 w-4" />
                 Manage Pages
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => navigate('/admin/supplier-import')}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Import Suppliers
               </Button>
               <Button 
                 variant="outline" 

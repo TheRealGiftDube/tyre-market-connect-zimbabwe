@@ -1,7 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import React from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 
@@ -14,53 +12,26 @@ interface PageContent {
   updated_at: string;
 }
 
-const DynamicPage = () => {
-  const { slug } = useParams<{ slug: string }>();
-  const [pageData, setPageData] = useState<PageContent | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface DynamicPageProps {
+  isLoading?: boolean;
+  error?: string | null;
+  pageData?: PageContent | null;
+}
 
-  useEffect(() => {
-    const fetchPageContent = async () => {
-      try {
-        setLoading(true);
-        
-        const { data, error } = await supabase
-          .from('pages')
-          .select('*')
-          .eq('slug', slug)
-          .maybeSingle();
-
-        if (error) {
-          throw error;
-        }
-
-        if (data) {
-          setPageData(data);
-          // Update document title with meta title if available
-          document.title = data.meta_title || data.title || 'Tyres.co.zw';
-        } else {
-          setError('Page not found');
-        }
-      } catch (error: any) {
-        console.error('Error fetching page:', error);
-        setError(error.message || 'Failed to load page content');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (slug) {
-      fetchPageContent();
+const DynamicPage: React.FC<DynamicPageProps> = ({ isLoading, error, pageData }) => {
+  // Update document title with meta title if available
+  React.useEffect(() => {
+    if (pageData) {
+      document.title = pageData.meta_title || pageData.title || 'Tyres.co.zw';
     }
-  }, [slug]);
+  }, [pageData]);
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-grow py-12 bg-gray-50">
         <div className="container mx-auto px-4">
-          {loading ? (
+          {isLoading ? (
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-blue"></div>
             </div>

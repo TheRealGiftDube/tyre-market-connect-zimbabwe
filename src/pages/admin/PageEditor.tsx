@@ -102,11 +102,14 @@ const PageEditor = () => {
       setIsLoading(true);
 
       if (isEditing) {
-        // Update existing page
+        // Update existing page with all required fields
         const { error } = await supabase
           .from('pages')
           .update({
-            ...values,
+            title: values.title,
+            content: values.content, // Make sure content is explicitly provided
+            meta_title: values.meta_title,
+            meta_description: values.meta_description,
             last_updated_by: user?.id,
             updated_at: new Date().toISOString(),
           })
@@ -121,7 +124,11 @@ const PageEditor = () => {
       } else {
         // Create new page
         const { error } = await supabase.from('pages').insert({
-          ...values,
+          title: values.title,
+          slug: values.slug,
+          content: values.content,
+          meta_title: values.meta_title,
+          meta_description: values.meta_description,
           last_updated_by: user?.id,
         });
 

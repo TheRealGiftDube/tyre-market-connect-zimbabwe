@@ -53,15 +53,7 @@ const PageRoute = () => {
     fetchPageContent();
   }, [slug, toast]);
 
-  if (loading) {
-    return <DynamicPage isLoading={true} />;
-  }
-
-  if (error) {
-    return <DynamicPage error={error} />;
-  }
-
-  return <DynamicPage pageData={pageContent} />;
+  return <DynamicPage isLoading={loading} error={error} pageData={pageContent} />;
 };
 
 export default PageRoute;

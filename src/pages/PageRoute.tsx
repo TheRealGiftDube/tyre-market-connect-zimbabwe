@@ -1,10 +1,11 @@
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import DynamicPage from '@/components/pages/DynamicPage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useScrollToTop } from '@/hooks/useScrollToTop';
+import NotFound from './NotFound';
 
 const PageRoute = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -12,9 +13,13 @@ const PageRoute = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Use the scroll to top hook
   useScrollToTop();
+
+  // If no slug is provided, use the current path as the slug
+  const effectiveSlug = slug || window.location.pathname.substring(1);
 
   useEffect(() => {
     const fetchPageContent = async () => {
@@ -22,15 +27,16 @@ const PageRoute = () => {
         setLoading(true);
         setError(null);
 
-        if (!slug) {
+        if (!effectiveSlug) {
           setError("Page not found");
           return;
         }
 
+        // First try to fetch the page by slug
         const { data, error: fetchError } = await supabase
           .from('pages')
           .select('*')
-          .eq('slug', slug)
+          .eq('slug', effectiveSlug)
           .maybeSingle();
 
         if (fetchError) {
@@ -42,7 +48,9 @@ const PageRoute = () => {
             variant: "destructive"
           });
         } else if (!data) {
+          // No page found with this slug
           setError("Page not found");
+          console.log(`Page with slug "${effectiveSlug}" not found in database`);
         } else {
           setPageContent(data);
         }
@@ -55,9 +63,14 @@ const PageRoute = () => {
     };
 
     fetchPageContent();
-  }, [slug, toast]);
+  }, [effectiveSlug, toast]);
 
-  return <DynamicPage isLoading={loading} error={error} pageData={pageContent} />;
+  // If page not found and we're not still loading, show the not found component
+  if (!loading && (error || !pageContent)) {
+    return <NotFound />;
+  }
+
+  return <DynamicPage isLoading={loading} error={null} pageData={pageContent} />;
 };
 
 export default PageRoute;

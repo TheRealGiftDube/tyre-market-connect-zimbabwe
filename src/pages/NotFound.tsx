@@ -1,4 +1,5 @@
 
+import React from "react";
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
@@ -20,8 +21,13 @@ const NotFound = () => {
     { name: "Request for Quotation", path: "/rfq" },
     { name: "About Us", path: "/about" },
     { name: "How It Works", path: "/how-it-works" },
+    { name: "Tyre Buying Guide", path: "/tyre-guide" },
+    { name: "Frequently Asked Questions", path: "/faq" },
+    { name: "Seller FAQ", path: "/seller-faq" },
+    { name: "Our Plans", path: "/plans" },
+    { name: "Register Your Business", path: "/register" },
     { name: "Contact Us", path: "/contact" },
-    { name: "FAQ", path: "/faq" },
+    { name: "Success Stories", path: "/testimonials" },
   ];
 
   return (

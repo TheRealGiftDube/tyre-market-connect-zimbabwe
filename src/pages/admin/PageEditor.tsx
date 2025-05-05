@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Save } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useScrollToTop } from '@/hooks/useScrollToTop';
 
 // Form schema
 const pageSchema = z.object({
@@ -39,6 +40,9 @@ const PageEditor = () => {
   const { user, userRole } = useAuth();
   const [isLoading, setIsLoading] = useState(id !== 'new');
   const isEditing = id !== 'new';
+  
+  // Use scroll to top hook
+  useScrollToTop();
 
   const form = useForm<PageFormValues>({
     resolver: zodResolver(pageSchema),
@@ -107,9 +111,9 @@ const PageEditor = () => {
           .from('pages')
           .update({
             title: values.title,
-            content: values.content, // Make sure content is explicitly provided
-            meta_title: values.meta_title,
-            meta_description: values.meta_description,
+            content: values.content,
+            meta_title: values.meta_title || values.title,
+            meta_description: values.meta_description || '',
             last_updated_by: user?.id,
             updated_at: new Date().toISOString(),
           })
@@ -127,8 +131,8 @@ const PageEditor = () => {
           title: values.title,
           slug: values.slug,
           content: values.content,
-          meta_title: values.meta_title,
-          meta_description: values.meta_description,
+          meta_title: values.meta_title || values.title,
+          meta_description: values.meta_description || '',
           last_updated_by: user?.id,
         });
 

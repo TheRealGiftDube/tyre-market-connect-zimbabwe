@@ -45,7 +45,7 @@ export const defaultPageContent = {
       </div>
     `,
     meta_title: 'Contact Tyres.co.zw',
-    meta_description: 'Get in touch with the Tyres.co.zw team. We're here to help with any questions about our tyre marketplace.'
+    meta_description: "Get in touch with the Tyres.co.zw team. We're here to help with any questions about our tyre marketplace."
   },
   'privacy': {
     title: 'Privacy Policy',

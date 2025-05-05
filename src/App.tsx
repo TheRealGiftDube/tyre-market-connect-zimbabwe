@@ -59,12 +59,12 @@ const App = () => (
             {/* Dynamic content pages - specific routes first */}
             <Route path="/about" element={<PageRoute />} />
             <Route path="/faq" element={<PageRoute />} />
+            <Route path="/seller-faq" element={<PageRoute />} />
             <Route path="/how-it-works" element={<PageRoute />} />
             <Route path="/contact" element={<PageRoute />} />
             <Route path="/plans" element={<PageRoute />} />
             <Route path="/privacy" element={<PageRoute />} />
             <Route path="/terms" element={<PageRoute />} />
-            <Route path="/seller-faq" element={<PageRoute />} />
             <Route path="/tyre-guide" element={<PageRoute />} />
             <Route path="/register" element={<PageRoute />} />
             <Route path="/testimonials" element={<PageRoute />} />

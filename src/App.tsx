@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Sellers from "./pages/Sellers";
 import RFQ from "./pages/RFQ";
+import PageRoute from "./pages/PageRoute";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,17 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/sellers" element={<Sellers />} />
           <Route path="/rfq" element={<RFQ />} />
+
+          {/* Dynamic content pages */}
+          <Route path="/about" element={<PageRoute />} />
+          <Route path="/faq" element={<PageRoute />} />
+          <Route path="/how-it-works" element={<PageRoute />} />
+          <Route path="/contact" element={<PageRoute />} />
+          <Route path="/plans" element={<PageRoute />} />
+          <Route path="/privacy" element={<PageRoute />} />
+          <Route path="/terms" element={<PageRoute />} />
+          <Route path="/seller-faq" element={<PageRoute />} />
+
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

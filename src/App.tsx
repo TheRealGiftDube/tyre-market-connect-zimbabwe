@@ -68,6 +68,7 @@ const App = () => (
             <Route path="/tyre-guide" element={<PageRoute />} />
             <Route path="/register" element={<PageRoute />} />
             <Route path="/testimonials" element={<PageRoute />} />
+            <Route path="/sitemap" element={<PageRoute />} />
             
             {/* Dynamic catch-all for custom pages */}
             <Route path="/:slug" element={<PageRoute />} />

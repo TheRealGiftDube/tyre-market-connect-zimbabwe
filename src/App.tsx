@@ -14,6 +14,13 @@ import RFQ from "./pages/RFQ";
 import PageRoute from "./pages/PageRoute";
 import Auth from "./pages/Auth";
 
+// New dedicated pages
+import About from "./pages/About";
+import TyreGuide from "./pages/TyreGuide";
+import Register from "./pages/Register";
+import Testimonials from "./pages/Testimonials";
+import Sitemap from "./pages/Sitemap";
+
 // Admin Dashboard Pages
 import AdminDashboard from "./pages/admin/Dashboard";
 import Pages from "./pages/admin/Pages";
@@ -48,6 +55,13 @@ const App = () => (
             <Route path="/rfq" element={<RFQ />} />
             <Route path="/auth" element={<Auth />} />
 
+            {/* New Dedicated Pages */}
+            <Route path="/about" element={<About />} />
+            <Route path="/tyre-guide" element={<TyreGuide />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/testimonials" element={<Testimonials />} />
+            <Route path="/sitemap" element={<Sitemap />} />
+
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/pages" element={<Pages />} />
@@ -56,8 +70,7 @@ const App = () => (
             <Route path="/admin/supplier-import" element={<SupplierImport />} />
             <Route path="/admin/initialize-pages" element={<InitializeDefaultPages />} />
 
-            {/* Dynamic content pages - specific routes first */}
-            <Route path="/about" element={<PageRoute />} />
+            {/* Dynamic content pages for remaining routes */}
             <Route path="/faq" element={<PageRoute />} />
             <Route path="/seller-faq" element={<PageRoute />} />
             <Route path="/how-it-works" element={<PageRoute />} />
@@ -65,10 +78,6 @@ const App = () => (
             <Route path="/plans" element={<PageRoute />} />
             <Route path="/privacy" element={<PageRoute />} />
             <Route path="/terms" element={<PageRoute />} />
-            <Route path="/tyre-guide" element={<PageRoute />} />
-            <Route path="/register" element={<PageRoute />} />
-            <Route path="/testimonials" element={<PageRoute />} />
-            <Route path="/sitemap" element={<PageRoute />} />
             
             {/* Dynamic catch-all for custom pages */}
             <Route path="/:slug" element={<PageRoute />} />

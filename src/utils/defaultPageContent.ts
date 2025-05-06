@@ -11,7 +11,17 @@
  * For dynamic pages, content is stored in the database and accessed via PageRoute.tsx
  */
 
-import { PageContent } from '@/integrations/supabase/types';
+// Define the PageContent type here since it's not exported from supabase/types
+interface PageContent {
+  title: string;
+  slug: string;
+  content: string;
+  meta_description: string;
+  meta_title: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 // Simplified version with only essential pages for database initialization
 export const defaultPageContent: Record<string, PageContent> = {

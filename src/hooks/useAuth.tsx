@@ -10,6 +10,7 @@ type AuthContextType = {
   profile: any | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithGoogle: () => Promise<void>;
   signUp: (email: string, password: string, userData?: any) => Promise<{ error: any, user: any }>;
   signOut: () => Promise<void>;
   userRole: 'admin' | 'seller' | 'buyer' | null;
@@ -104,6 +105,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth`,
+        },
+      });
+      
+      if (error) {
+        toast({
+          title: "Google login failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error in signInWithGoogle:', error);
+      toast({
+        title: "Google login failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
   const signUp = async (email: string, password: string, userData?: any) => {
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -153,6 +180,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     profile,
     isLoading,
     signIn,
+    signInWithGoogle,
     signUp,
     signOut,
     userRole,

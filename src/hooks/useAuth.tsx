@@ -1,5 +1,12 @@
+// src/hooks/useAuth.tsx
 
-import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -11,7 +18,11 @@ type AuthContextType = {
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<void>;
-  signUp: (email: string, password: string, userData?: any) => Promise<{ error: any, user: any }>;
+  signUp: (
+    email: string,
+    password: string,
+    userData?: Record<string, any>
+  ) => Promise<{ error: any; user: any }>;
   signOut: () => Promise<void>;
   userRole: 'admin' | 'seller' | 'buyer' | null;
 };
@@ -26,7 +37,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userRole, setUserRole] = useState<'admin' | 'seller' | 'buyer' | null>(null);
   const { toast } = useToast();
 
-  // Fetch user profile
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -35,47 +45,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq('id', userId)
         .single();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
-        return;
-      }
-
-      if (data) {
-        setProfile(data);
-        setUserRole(data.role);
-      }
-    } catch (error) {
-      console.error('Error in fetchProfile:', error);
+      if (error) throw error;
+      setProfile(data);
+      setUserRole(data.role);
+    } catch (err) {
+      console.error('Failed to fetch profile:', err);
+      toast({
+        title: 'Error loading profile',
+        description: 'Could not load your profile information.',
+        variant: 'destructive',
+      });
     }
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        
-        if (currentSession?.user) {
-          setTimeout(() => {
-            fetchProfile(currentSession.user.id);
-          }, 0);
-        } else {
-          setProfile(null);
-          setUserRole(null);
-        }
-      }
-    );
+    const init = async () => {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      if (currentSession) {
+        setSession(currentSession);
+        setUser(currentSession.user);
+        await fetchProfile(currentSession.user.id);
+      }
+
+      setIsLoading(false);
+    };
+
+    init();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
-      
+
       if (currentSession?.user) {
-        fetchProfile(currentSession.user.id);
+        await fetchProfile(currentSession.user.id);
+      } else {
+        setProfile(null);
+        setUserRole(null);
       }
-      setIsLoading(false);
     });
 
     return () => {
@@ -86,22 +97,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
+
       if (error) {
         toast({
-          title: "Login failed",
+          title: 'Login failed',
           description: error.message,
-          variant: "destructive",
+          variant: 'destructive',
         });
         return { error };
       }
-      toast({
-        title: "Login successful",
-        description: "Welcome back!",
-      });
+
+      toast({ title: 'Login successful', description: 'Welcome back!' });
       return { error: null };
-    } catch (error) {
-      console.error('Error in signIn:', error);
-      return { error };
+    } catch (err) {
+      console.error('Error during sign-in:', err);
+      toast({
+        title: 'Unexpected error',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      });
+      return { error: err };
     }
   };
 
@@ -110,71 +125,86 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth`,
+          redirectTo: `${window.location.origin}/auth`, // Or set this dynamically if needed
         },
       });
-      
+
       if (error) {
         toast({
-          title: "Google login failed",
+          title: 'Google sign-in failed',
           description: error.message,
-          variant: "destructive",
+          variant: 'destructive',
         });
       }
-    } catch (error) {
-      console.error('Error in signInWithGoogle:', error);
+    } catch (err) {
+      console.error('Google sign-in error:', err);
       toast({
-        title: "Google login failed",
-        description: "An unexpected error occurred",
-        variant: "destructive",
+        title: 'Unexpected error',
+        description: 'Please try again later.',
+        variant: 'destructive',
       });
     }
   };
 
-  const signUp = async (email: string, password: string, userData?: any) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    userData?: Record<string, any>
+  ) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: userData,
+          data: userData || {},
         },
       });
 
       if (error) {
         toast({
-          title: "Signup failed",
+          title: 'Signup failed',
           description: error.message,
-          variant: "destructive",
+          variant: 'destructive',
         });
         return { error, user: null };
       }
 
       toast({
-        title: "Signup successful",
-        description: "Welcome! Please verify your email.",
+        title: 'Signup successful',
+        description: 'Please check your email to confirm your account.',
       });
 
       return { error: null, user: data.user };
-    } catch (error) {
-      console.error('Error in signUp:', error);
-      return { error, user: null };
+    } catch (err) {
+      console.error('Signup error:', err);
+      toast({
+        title: 'Unexpected error',
+        description: 'Could not complete signup.',
+        variant: 'destructive',
+      });
+      return { error: err, user: null };
     }
   };
 
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      setUserRole(null);
+      toast({ title: 'Logged out', description: 'You have been signed out.' });
+    } catch (err) {
+      console.error('Sign out error:', err);
       toast({
-        title: "Logged out",
-        description: "You have been logged out successfully.",
+        title: 'Sign out failed',
+        description: 'Try again later.',
+        variant: 'destructive',
       });
-    } catch (error) {
-      console.error('Error in signOut:', error);
     }
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     session,
     profile,
@@ -191,7 +221,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

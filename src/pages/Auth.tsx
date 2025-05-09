@@ -15,24 +15,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-// Helper function to clean up Supabase auth state
-const cleanupAuthState = () => {
-  // Remove standard auth tokens
-  localStorage.removeItem('supabase.auth.token');
-  // Remove all Supabase auth keys from localStorage
-  Object.keys(localStorage).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      localStorage.removeItem(key);
-    }
-  });
-  // Remove from sessionStorage if in use
-  Object.keys(sessionStorage || {}).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      sessionStorage.removeItem(key);
-    }
-  });
-};
+import { cleanupAuthState } from '@/utils/authUtils';
 
 export default function AuthPage() {
   const navigate = useNavigate();

@@ -137,15 +137,13 @@ export const authService = {
       // we should store a reference to connect them
       if (data.user && existingUserData?.id) {
         try {
-          // Store a reference to connect the accounts
-          await supabase
-            .from('profiles')
-            .update({
-              // We can't use linked_accounts as it doesn't exist in the schema
-              // Instead, we'll store this information differently
-              connected_account_id: data.user.id
-            })
-            .eq('id', existingUserData.id);
+          // Instead of trying to use a field that doesn't exist,
+          // we'll store the connection information in user_metadata
+          await supabase.auth.updateUser({
+            data: { 
+              connected_to_profile: existingUserData.id 
+            }
+          });
             
           toast?.({
             title: 'Account linked',
@@ -189,7 +187,7 @@ export const authService = {
         .select('id')
         .eq('email', email)
         .not('id', 'eq', currentUserId)
-        .maybeSingle();
+        .single();
         
       if (profileError) {
         console.error('Error checking for existing profile:', profileError);
@@ -197,15 +195,12 @@ export const authService = {
       }
       
       if (existingProfile) {
-        // Update the current user's profile to link to the existing profile
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            // We can't use linked_accounts as it doesn't exist in the schema
-            // Instead, we'll use connected_account_id
-            connected_account_id: existingProfile.id
-          })
-          .eq('id', currentUserId);
+        // Update user metadata to store the connection
+        const { error: updateError } = await supabase.auth.updateUser({
+          data: { 
+            connected_to_profile: existingProfile.id 
+          }
+        });
           
         if (updateError) {
           console.error('Failed to link accounts:', updateError);

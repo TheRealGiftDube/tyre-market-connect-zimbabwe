@@ -20,14 +20,21 @@ export const signUpService = {
       // Clean up existing auth state first
       cleanupAuthState();
       
-      // Check if a user already exists with this email using a simplified query
-      const { data: existingUsers, error: queryError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email)
-        .limit(1);
-        
-      const existingUserData = existingUsers && existingUsers.length > 0 ? existingUsers[0] : null;
+      // Check if a user already exists with this email using a direct query without complex typing
+      let existingUserData = null;
+      try {
+        const { data } = await supabase
+          .rpc('get_user_by_email', { email_param: email });
+        existingUserData = data && data.length > 0 ? data[0] : null;
+      } catch (e) {
+        // If the RPC function doesn't exist, fallback to a simple query
+        const { data } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .limit(1);
+        existingUserData = data && data.length > 0 ? data[0] : null;
+      }
         
       // Proceed with signup
       const { data, error } = await supabase.auth.signUp({

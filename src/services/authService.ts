@@ -134,14 +134,16 @@ export const authService = {
       }
 
       // If we have an existing user with this email from another provider, 
-      // we should link the accounts automatically during the signup process
+      // we should store a reference to connect them
       if (data.user && existingUserData?.id) {
         try {
-          // Update the profiles table to merge the identities
+          // Store a reference to connect the accounts
           await supabase
             .from('profiles')
             .update({
-              linked_accounts: supabase.sql`array_append(linked_accounts, ${data.user.id})`
+              // We can't use linked_accounts as it doesn't exist in the schema
+              // Instead, we'll store this information differently
+              connected_account_id: data.user.id
             })
             .eq('id', existingUserData.id);
             
@@ -184,7 +186,7 @@ export const authService = {
       // Check if a profile with this email already exists
       const { data: existingProfile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, email')
+        .select('id')
         .eq('email', email)
         .not('id', 'eq', currentUserId)
         .maybeSingle();
@@ -199,7 +201,9 @@ export const authService = {
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
-            linked_accounts: supabase.sql`array_append(linked_accounts, ${existingProfile.id})`
+            // We can't use linked_accounts as it doesn't exist in the schema
+            // Instead, we'll use connected_account_id
+            connected_account_id: existingProfile.id
           })
           .eq('id', currentUserId);
           

@@ -99,6 +99,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUserRole(null);
   };
 
+  const linkAccounts = async (email: string, provider: string) => {
+    if (!user) return { error: new Error('No active user session') };
+    return await authService.linkAccounts(user.id, email, provider, toast);
+  };
+
   const value: AuthContextType = {
     user,
     session,
@@ -108,6 +113,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signInWithGoogle,
     signUp,
     signOut,
+    linkAccounts,
     userRole,
   };
 

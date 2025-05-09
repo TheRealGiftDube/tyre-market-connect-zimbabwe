@@ -100,7 +100,6 @@ export default function AuthPage() {
 
   // Import these functions from the PasswordStrengthChecker
   const { getPasswordRequirements, areAllRequirementsMet } = (() => {
-    // ... keep existing code (password validation functions)
     const getPasswordRequirements = (password: string) => {
       return [
         {

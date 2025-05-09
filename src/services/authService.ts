@@ -102,12 +102,25 @@ export const authService = {
     try {
       // Clean up existing auth state first
       cleanupAuthState();
-
+      
+      // Check if a user already exists with this email
+      // This will help us link accounts later if needed
+      const { data: existingUserData } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+        
+      // Proceed with signup
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: userData || {},
+          data: {
+            ...userData || {},
+            // If there's an existing profile, we'll try to link it later
+            existing_profile_id: existingUserData?.id || null,
+          },
         },
       });
 
@@ -118,6 +131,27 @@ export const authService = {
           variant: 'destructive',
         });
         return { error, user: null };
+      }
+
+      // If we have an existing user with this email from another provider, 
+      // we should link the accounts automatically during the signup process
+      if (data.user && existingUserData?.id) {
+        try {
+          // Update the profiles table to merge the identities
+          await supabase
+            .from('profiles')
+            .update({
+              linked_accounts: supabase.sql`array_append(linked_accounts, ${data.user.id})`
+            })
+            .eq('id', existingUserData.id);
+            
+          toast?.({
+            title: 'Account linked',
+            description: 'Your accounts have been unified successfully.',
+          });
+        } catch (linkError) {
+          console.error('Failed to link accounts:', linkError);
+        }
       }
 
       toast?.({
@@ -134,6 +168,69 @@ export const authService = {
         variant: 'destructive',
       });
       return { error: err, user: null };
+    }
+  },
+
+  /**
+   * Link multiple authentication methods to one account
+   */
+  linkAccounts: async (
+    currentUserId: string, 
+    email: string, 
+    provider: string,
+    toast: (props: ToastProps) => void
+  ) => {
+    try {
+      // Check if a profile with this email already exists
+      const { data: existingProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .eq('email', email)
+        .not('id', 'eq', currentUserId)
+        .maybeSingle();
+        
+      if (profileError) {
+        console.error('Error checking for existing profile:', profileError);
+        return { error: profileError };
+      }
+      
+      if (existingProfile) {
+        // Update the current user's profile to link to the existing profile
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            linked_accounts: supabase.sql`array_append(linked_accounts, ${existingProfile.id})`
+          })
+          .eq('id', currentUserId);
+          
+        if (updateError) {
+          console.error('Failed to link accounts:', updateError);
+          toast({
+            title: 'Account linking failed',
+            description: 'Could not link your accounts. Please try again.',
+            variant: 'destructive',
+          });
+          return { error: updateError };
+        }
+        
+        toast({
+          title: 'Accounts linked',
+          description: `Your ${provider} account has been linked successfully.`,
+        });
+        
+        return { error: null };
+      } else {
+        // No existing profile found with this email
+        return { error: null };
+      }
+    } catch (err) {
+      console.error('Account linking error:', err);
+      toast({
+        title: 'Account linking failed',
+        description: 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      });
+      return { error: err };
     }
   },
 

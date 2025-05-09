@@ -16,5 +16,6 @@ export type AuthContextType = {
     userData?: Record<string, any>
   ) => Promise<{ error: any; user: any }>;
   signOut: () => Promise<void>;
+  linkAccounts: (email: string, provider: string) => Promise<{ error: any }>;
   userRole: UserRole;
 };

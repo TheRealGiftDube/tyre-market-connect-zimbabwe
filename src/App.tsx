@@ -6,12 +6,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import AuthGuard from "@/components/auth/AuthGuard";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Sellers from "./pages/Sellers";
 import RFQ from "./pages/RFQ";
 import PageRoute from "./pages/PageRoute";
 import Auth from "./pages/Auth";
+import Unauthorized from "./pages/Unauthorized";
 
 // New dedicated pages
 import About from "./pages/About";
@@ -39,25 +41,27 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
+              {/* Public Routes */}
               <Route path="/" element={<Index />} />
               <Route path="/sellers" element={<Sellers />} />
               <Route path="/rfq" element={<RFQ />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/unauthorized" element={<Unauthorized />} />
 
-              {/* New Dedicated Pages */}
+              {/* New Dedicated Public Pages */}
               <Route path="/about" element={<About />} />
               <Route path="/tyre-guide" element={<TyreGuide />} />
               <Route path="/register" element={<Register />} />
               <Route path="/testimonials" element={<Testimonials />} />
               <Route path="/sitemap" element={<Sitemap />} />
 
-              {/* Admin Routes */}
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/pages" element={<Pages />} />
-              <Route path="/admin/pages/new" element={<PageEditor />} />
-              <Route path="/admin/pages/edit/:id" element={<PageEditor />} />
-              <Route path="/admin/supplier-import" element={<SupplierImport />} />
-              <Route path="/admin/initialize-pages" element={<InitializeDefaultPages />} />
+              {/* Admin Routes - Protected */}
+              <Route path="/admin" element={<AuthGuard requiredRole="admin"><AdminDashboard /></AuthGuard>} />
+              <Route path="/admin/pages" element={<AuthGuard requiredRole="admin"><Pages /></AuthGuard>} />
+              <Route path="/admin/pages/new" element={<AuthGuard requiredRole="admin"><PageEditor /></AuthGuard>} />
+              <Route path="/admin/pages/edit/:id" element={<AuthGuard requiredRole="admin"><PageEditor /></AuthGuard>} />
+              <Route path="/admin/supplier-import" element={<AuthGuard requiredRole="admin"><SupplierImport /></AuthGuard>} />
+              <Route path="/admin/initialize-pages" element={<AuthGuard requiredRole="admin"><InitializeDefaultPages /></AuthGuard>} />
 
               {/* Dynamic content pages for remaining routes */}
               <Route path="/faq" element={<PageRoute />} />

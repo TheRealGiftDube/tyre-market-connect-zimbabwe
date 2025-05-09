@@ -1,8 +1,7 @@
-
 // src/pages/Auth.tsx
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,8 +16,27 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+// Helper function to clean up Supabase auth state
+const cleanupAuthState = () => {
+  // Remove standard auth tokens
+  localStorage.removeItem('supabase.auth.token');
+  // Remove all Supabase auth keys from localStorage
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  // Remove from sessionStorage if in use
+  Object.keys(sessionStorage || {}).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+};
+
 export default function AuthPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, signIn, signUp, signInWithGoogle, isLoading } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -35,11 +53,12 @@ export default function AuthPage() {
   const [allRequirementsMet, setAllRequirementsMet] = useState(false);
 
   useEffect(() => {
-    // If user is already logged in, redirect to home page instead of dashboard
+    // If user is already logged in, redirect to home page or the page they tried to access
     if (user) {
-      navigate('/');
+      const from = location.state?.from || '/';
+      navigate(from, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, location.state]);
   
   // Check if passwords match whenever confirm password changes
   useEffect(() => {
@@ -70,19 +89,20 @@ export default function AuthPage() {
     setIsSubmitting(true);
 
     try {
+      // Clean up existing auth state to prevent issues
+      cleanupAuthState();
+
       if (mode === 'login') {
         const result = await signIn(email, password);
         if (!result.error) {
-          // Redirect to home page on successful login
-          navigate('/');
+          // Redirect will happen in the useEffect when user state updates
         }
       } else {
         // Only proceed if all password requirements are met and passwords match
         if (allRequirementsMet && passwordsMatch) {
           const result = await signUp(email, password, { full_name: fullName });
           if (!result.error && result.user) {
-            // Redirect to home page on successful signup
-            navigate('/');
+            // Redirect will happen in the useEffect when user state updates
           }
         }
       }
@@ -95,6 +115,7 @@ export default function AuthPage() {
 
   // Import these functions from the PasswordStrengthChecker
   const { getPasswordRequirements, areAllRequirementsMet } = (() => {
+    // ... keep existing code (password validation functions)
     const getPasswordRequirements = (password: string) => {
       return [
         {

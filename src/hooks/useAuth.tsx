@@ -1,3 +1,4 @@
+
 // src/hooks/useAuth.tsx
 
 import React, {
@@ -28,6 +29,24 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Helper function to clean up Supabase auth state
+const cleanupAuthState = () => {
+  // Remove standard auth tokens
+  localStorage.removeItem('supabase.auth.token');
+  // Remove all Supabase auth keys from localStorage
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  // Remove from sessionStorage if in use
+  Object.keys(sessionStorage || {}).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -60,6 +79,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const init = async () => {
+      // First set up listener to avoid race conditions
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+
+        if (currentSession?.user) {
+          // Defer profile fetch slightly to avoid potential deadlocks
+          setTimeout(() => {
+            fetchProfile(currentSession.user.id);
+          }, 0);
+        } else {
+          setProfile(null);
+          setUserRole(null);
+        }
+      });
+
+      // Then check for existing session
       const {
         data: { session: currentSession },
       } = await supabase.auth.getSession();
@@ -71,31 +109,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       setIsLoading(false);
+
+      return () => {
+        subscription.unsubscribe();
+      };
     };
 
     init();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-
-      if (currentSession?.user) {
-        await fetchProfile(currentSession.user.id);
-      } else {
-        setProfile(null);
-        setUserRole(null);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Clean up existing auth state first
+      cleanupAuthState();
+
+      // Attempt global sign out first to prevent issues
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continue even if this fails
+        console.log('Pre-signout failed, continuing anyway');
+      }
+
       const { error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
@@ -122,6 +157,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithGoogle = async () => {
     try {
+      // Clean up existing auth state first
+      cleanupAuthState();
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -152,6 +190,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     userData?: Record<string, any>
   ) => {
     try {
+      // Clean up existing auth state first
+      cleanupAuthState();
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -188,12 +229,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      // Clean up auth state first
+      cleanupAuthState();
+
+      // Attempt global sign out
+      await supabase.auth.signOut({ scope: 'global' });
+      
       setUser(null);
       setSession(null);
       setProfile(null);
       setUserRole(null);
+      
       toast({ title: 'Logged out', description: 'You have been signed out.' });
+      
+      // Force page reload for clean state
+      window.location.href = '/';
     } catch (err) {
       console.error('Sign out error:', err);
       toast({

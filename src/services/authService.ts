@@ -1,7 +1,9 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { cleanupAuthState } from '@/utils/authUtils';
-import { Toast } from '@/hooks/use-toast';
+import { toast as toastFunction } from '@/hooks/use-toast';
+
+type ToastProps = Parameters<typeof toastFunction>[0];
 
 /**
  * Service for handling authentication operations
@@ -10,7 +12,7 @@ export const authService = {
   /**
    * Sign in with email and password
    */
-  signIn: async (email: string, password: string, toast: (props: Toast) => void) => {
+  signIn: async (email: string, password: string, toast: (props: ToastProps) => void) => {
     try {
       // Clean up existing auth state first
       cleanupAuthState();
@@ -50,7 +52,7 @@ export const authService = {
   /**
    * Sign in with Google OAuth
    */
-  signInWithGoogle: async (toast: (props: Toast) => void) => {
+  signInWithGoogle: async (toast: (props: ToastProps) => void) => {
     try {
       // Clean up existing auth state first
       cleanupAuthState();
@@ -86,7 +88,7 @@ export const authService = {
     email: string,
     password: string,
     userData?: Record<string, any>,
-    toast?: (props: Toast) => void
+    toast?: (props: ToastProps) => void
   ) => {
     try {
       // Clean up existing auth state first
@@ -129,7 +131,7 @@ export const authService = {
   /**
    * Sign out the current user
    */
-  signOut: async (toast: (props: Toast) => void) => {
+  signOut: async (toast: (props: ToastProps) => void) => {
     try {
       // Clean up auth state first
       cleanupAuthState();

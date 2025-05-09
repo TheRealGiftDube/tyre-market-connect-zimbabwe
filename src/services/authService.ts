@@ -25,19 +25,28 @@ export const authService = {
         console.log('Pre-signout failed, continuing anyway');
       }
 
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      console.log('Attempting login with:', email);
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
+        console.error('Login error details:', error);
+        
+        // Provide more specific error message based on error code
+        let errorMessage = error.message;
+        if (error.message.includes('Invalid login')) {
+          errorMessage = 'Email or password is incorrect. Please try again.';
+        }
+        
         toast({
           title: 'Login failed',
-          description: error.message,
+          description: errorMessage,
           variant: 'destructive',
         });
         return { error };
       }
 
       toast({ title: 'Login successful', description: 'Welcome back!' });
-      return { error: null };
+      return { error: null, data };
     } catch (err) {
       console.error('Error during sign-in:', err);
       toast({

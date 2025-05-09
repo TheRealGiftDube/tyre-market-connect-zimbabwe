@@ -50,8 +50,9 @@ const Hero = () => {
           <div className="hidden lg:block">
             <img 
               src="/lovable-uploads/e8929736-6c72-45af-bb65-b1a47d5e6269.png" 
-              alt="All About Tyres" 
+              alt="Tyres Zimbabwe - Premium Tyre Selection" 
               className="rounded-lg shadow-lg"
+              id="tyres_co_zw_home_page_image"
               onError={(e) => {
                 e.currentTarget.src = "https://placehold.co/600x400?text=Tyre+Image";
               }}

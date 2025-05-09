@@ -76,7 +76,9 @@ export default function AuthPage() {
       cleanupAuthState();
 
       if (mode === 'login') {
+        console.log('Login attempt with:', email);
         const result = await signIn(email, password);
+        console.log('Login result:', result);
         if (!result.error) {
           // Redirect will happen in the useEffect when user state updates
         }

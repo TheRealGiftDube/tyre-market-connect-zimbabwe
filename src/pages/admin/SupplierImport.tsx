@@ -11,6 +11,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import Papa from 'papaparse';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 
@@ -29,17 +30,17 @@ interface SupplierData {
   [key: string]: string;
 }
 
-const SupplierImport: React.FC = () => {
+const SupplierImportPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, userRole } = useAuth();
   
-  const [activeTab, setActiveTab] = useState<string>('url');
-  const [googleSheetUrl, setGoogleSheetUrl] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<string>('upload');
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [previewData, setPreviewData] = useState<SupplierData[]>([]);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
+  const [showMapping, setShowMapping] = useState<boolean>(false);
   const [showPreview, setShowPreview] = useState<boolean>(false);
   const [importButtonDisabled, setImportButtonDisabled] = useState<boolean>(true);
 
@@ -55,11 +56,6 @@ const SupplierImport: React.FC = () => {
     }
   }, [userRole, navigate, isLoading, toast]);
 
-  // Validate Google Sheet URL
-  const isValidGoogleSheetUrl = (url: string) => {
-    return url.includes('docs.google.com/spreadsheets');
-  };
-
   // Handle file selection
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -68,30 +64,59 @@ const SupplierImport: React.FC = () => {
     }
   };
 
-  // Parse CSV data
-  const parseCSV = (text: string) => {
-    const lines = text.split('\n');
-    const headers = lines[0].split(',').map(header => header.trim());
+  // Transform phone number to standard format
+  const formatPhoneNumber = (phone: string): string => {
+    if (!phone) return '';
     
-    const data = [];
-    for (let i = 1; i < lines.length; i++) {
-      if (!lines[i].trim()) continue;
-      
-      const values = lines[i].split(',');
-      const row: {[key: string]: string} = {};
-      
-      for (let j = 0; j < headers.length; j++) {
-        row[headers[j]] = values[j] ? values[j].trim() : '';
-      }
-      
-      data.push(row);
+    // Remove any spaces, hyphens, or parentheses
+    let cleanNumber = phone.replace(/[\s\-()]/g, '');
+    
+    // If it starts with 0, remove the 0 and add +263
+    if (cleanNumber.startsWith('0')) {
+      return '+263' + cleanNumber.substring(1);
     }
     
-    return { headers, data };
+    // If it doesn't start with +263, add it
+    if (!cleanNumber.startsWith('+263')) {
+      return '+263' + cleanNumber;
+    }
+    
+    return cleanNumber;
   };
 
-  // Load data from CSV
-  const loadFromCSV = async () => {
+  // Format Google Map Pin
+  const formatGoogleMapPin = (pin: string): string => {
+    if (!pin) return '';
+    
+    // Check if it's already a URL
+    if (pin.startsWith('http')) return pin;
+    
+    // Format as a Google Maps URL
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pin)}`;
+  };
+
+  // Validate email address
+  const isValidEmail = (email: string): boolean => {
+    if (!email || email.toLowerCase() === 'none' || email.toLowerCase() === 'n/a') return true;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Validate URL
+  const isValidUrl = (url: string): boolean => {
+    if (!url || url.toLowerCase() === 'none' || url.toLowerCase() === 'n/a') return true;
+    return url.startsWith('http://') || url.startsWith('https://');
+  };
+
+  // Format URL to ensure it has http/https
+  const formatUrl = (url: string): string => {
+    if (!url || url.toLowerCase() === 'none' || url.toLowerCase() === 'n/a') return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `https://${url}`;
+  };
+
+  // Process the CSV file
+  const processCSV = async () => {
     if (!csvFile) {
       toast({
         title: "Error",
@@ -105,110 +130,87 @@ const SupplierImport: React.FC = () => {
 
     try {
       const text = await csvFile.text();
-      const { headers, data } = parseCSV(text);
       
-      // Create column mappings
-      const mappings: ColumnMapping[] = headers.map((header, index) => ({
-        originalName: header,
-        mappedName: header.toLowerCase().replace(/\s/g, '_'),
-        required: ['business_name', 'contact_number'].includes(header.toLowerCase().replace(/\s/g, '_')),
-        include: true,
-        order: index,
-        valid: true
-      }));
+      Papa.parse(text, {
+        header: true,
+        complete: (results) => {
+          const data = results.data as SupplierData[];
+          
+          if (data.length === 0) {
+            toast({
+              title: "Error",
+              description: "No data found in the CSV file",
+              variant: "destructive"
+            });
+            setIsLoading(false);
+            return;
+          }
+          
+          // Get column headers from the first row
+          const firstRow = data[0];
+          const headers = Object.keys(firstRow);
+          
+          // Create column mappings
+          const mappings: ColumnMapping[] = headers.map((header, index) => {
+            // Auto-map common column names
+            let mappedName = header.toLowerCase().replace(/\s+/g, '_');
+            
+            if (header.toLowerCase().includes('business') || header.toLowerCase().includes('company')) {
+              mappedName = 'business_name';
+            } else if (header.toLowerCase().includes('contact') || header.toLowerCase().includes('phone')) {
+              mappedName = 'contact_number';
+            } else if (header.toLowerCase().includes('whatsapp')) {
+              mappedName = 'whatsapp_number';
+            } else if (header.toLowerCase().includes('email')) {
+              mappedName = 'email';
+            } else if (header.toLowerCase().includes('address')) {
+              mappedName = 'physical_address';
+            } else if (header.toLowerCase().includes('map') || header.toLowerCase().includes('location')) {
+              mappedName = 'google_map_pin';
+            } else if (header.toLowerCase().includes('website') || header.toLowerCase().includes('url')) {
+              mappedName = 'website_url';
+            } else if (header.toLowerCase().includes('facebook')) {
+              mappedName = 'facebook';
+            } else if (header.toLowerCase().includes('instagram') || header.toLowerCase().includes('insta')) {
+              mappedName = 'instagram';
+            } else if (header.toLowerCase().includes('tiktok') || header.toLowerCase().includes('tik')) {
+              mappedName = 'tiktok';
+            } else if (header.toLowerCase().includes('branch')) {
+              mappedName = 'branch';
+            }
+            
+            return {
+              originalName: header,
+              mappedName,
+              required: mappedName === 'business_name' || mappedName === 'contact_number',
+              include: true,
+              order: index,
+              valid: true
+            };
+          });
 
-      setColumnMappings(mappings);
-      setPreviewData(data);
-      setShowPreview(true);
-      setImportButtonDisabled(false);
-    } catch (error) {
-      console.error("Error parsing CSV:", error);
-      toast({
-        title: "Error",
-        description: "Failed to parse CSV file",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Load data from Google Sheets
-  const loadFromGoogleSheets = async () => {
-    if (!isValidGoogleSheetUrl(googleSheetUrl)) {
-      toast({
-        title: "Error", 
-        description: "Please enter a valid Google Sheets URL",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      // For demo purposes, we'll use mock data since we can't directly fetch from Google Sheets in the browser
-      // In a real implementation, you would use a backend function to fetch the data
-      
-      // Mock data for demonstration
-      const mockHeaders = ["Business Name", "Branch", "Contact Number", "WhatsApp Number", "Email", "Physical Address", "Google Map Pin", "Website", "Facebook", "Instagram", "TikTok"];
-      const mockData = [
-        {
-          "Business Name": "Tyre Hub",
-          "Branch": "Downtown",
-          "Contact Number": "+263771234567",
-          "WhatsApp Number": "+263771234567",
-          "Email": "info@tyrehub.co.zw",
-          "Physical Address": "123 Main St, Harare",
-          "Google Map Pin": "https://maps.google.com/?q=-17.824858,31.053028",
-          "Website": "https://tyrehub.co.zw",
-          "Facebook": "facebook.com/tyrehubzw",
-          "Instagram": "instagram.com/tyrehubzw",
-          "TikTok": "tiktok.com/@tyrehubzw"
+          setColumnMappings(mappings);
+          setPreviewData(data);
+          setShowMapping(true);
+          setIsLoading(false);
         },
-        {
-          "Business Name": "Wheel World",
-          "Branch": "Avondale",
-          "Contact Number": "+263779876543",
-          "WhatsApp Number": "+263779876543",
-          "Email": "sales@wheelworld.co.zw",
-          "Physical Address": "45 Second Ave, Avondale, Harare",
-          "Google Map Pin": "https://maps.google.com/?q=-17.807222,31.034722",
-          "Website": "https://wheelworld.co.zw",
-          "Facebook": "facebook.com/wheelworldzw",
-          "Instagram": "instagram.com/wheelworldzw",
-          "TikTok": ""
+        error: (error) => {
+          console.error("Error parsing CSV:", error);
+          toast({
+            title: "Error",
+            description: "Failed to parse CSV file",
+            variant: "destructive"
+          });
+          setIsLoading(false);
         }
-      ];
-
-      // Create column mappings
-      const mappings: ColumnMapping[] = mockHeaders.map((header, index) => ({
-        originalName: header,
-        mappedName: header.toLowerCase().replace(/\s/g, '_'),
-        required: ['business_name', 'contact_number'].includes(header.toLowerCase().replace(/\s/g, '_')),
-        include: true,
-        order: index,
-        valid: true
-      }));
-
-      setColumnMappings(mappings);
-      setPreviewData(mockData);
-      setShowPreview(true);
-      setImportButtonDisabled(false);
-      
-      toast({
-        title: "Success",
-        description: "Sample data loaded from Google Sheets",
       });
-      
     } catch (error) {
-      console.error("Error fetching Google Sheet:", error);
+      console.error("Error reading file:", error);
       toast({
         title: "Error",
-        description: "Failed to load data from Google Sheet",
+        description: "Failed to read CSV file",
         variant: "destructive"
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -249,49 +251,115 @@ const SupplierImport: React.FC = () => {
     setColumnMappings(updatedItems);
   };
 
+  // Process data before preview
+  const processDataForPreview = () => {
+    // Apply transformations to the data
+    const processedData = previewData.map((row) => {
+      const newRow: SupplierData = {};
+      
+      // Only include mapped columns
+      columnMappings
+        .filter(mapping => mapping.include)
+        .forEach(mapping => {
+          const value = row[mapping.originalName] || '';
+          
+          // Apply specific transformations based on column type
+          if (mapping.mappedName === 'contact_number' || mapping.mappedName === 'whatsapp_number') {
+            newRow[mapping.mappedName] = formatPhoneNumber(value);
+          } else if (mapping.mappedName === 'google_map_pin') {
+            newRow[mapping.mappedName] = formatGoogleMapPin(value);
+          } else if (mapping.mappedName === 'website_url' || 
+                    mapping.mappedName === 'facebook' || 
+                    mapping.mappedName === 'instagram' || 
+                    mapping.mappedName === 'tiktok') {
+            newRow[mapping.mappedName] = formatUrl(value);
+          } else {
+            newRow[mapping.mappedName] = value;
+          }
+        });
+      
+      return newRow;
+    });
+    
+    // Filter out invalid rows
+    const validatedData = processedData.filter((row) => {
+      // Business name must be present
+      if (!row.business_name) return false;
+      
+      // Contact number must be present and valid
+      if (!row.contact_number || row.contact_number.length < 10) return false;
+      
+      // WhatsApp number must be valid if present
+      if (row.whatsapp_number && row.whatsapp_number.length < 10) return false;
+      
+      // Email must be valid if present
+      if (row.email && !isValidEmail(row.email)) return false;
+      
+      // URLs must be valid if present
+      if (row.website_url && !isValidUrl(row.website_url)) return false;
+      if (row.facebook && !isValidUrl(row.facebook)) return false;
+      if (row.instagram && !isValidUrl(row.instagram)) return false;
+      if (row.tiktok && !isValidUrl(row.tiktok)) return false;
+      
+      return true;
+    });
+    
+    return validatedData;
+  };
+
+  // Show preview
+  const showDataPreview = () => {
+    const processedData = processDataForPreview();
+    setPreviewData(processedData);
+    setShowMapping(false);
+    setShowPreview(true);
+  };
+
   // Import data to the database
   const importData = async () => {
     setIsLoading(true);
     
     try {
-      // Prepare the data based on column mappings
-      const dataToImport = previewData.map(row => {
-        const formattedRow: any = {};
-        
-        columnMappings
-          .filter(mapping => mapping.include)
-          .sort((a, b) => a.order - b.order)
-          .forEach(mapping => {
-            formattedRow[mapping.mappedName] = row[mapping.originalName] || '';
-          });
-        
-        // Add metadata
-        formattedRow.source = activeTab === 'url' ? 'Google Sheet' : 'CSV Upload';
-        formattedRow.added_by = user?.id;
-        formattedRow.status = 'pending';
-        
-        return formattedRow;
-      });
+      const processedData = processDataForPreview();
       
-      // Insert into the imported_suppliers table
-      const { data, error } = await supabase
-        .from('imported_suppliers')
-        .insert(dataToImport);
+      // Add metadata to each row
+      const dataToInsert = processedData.map(row => ({
+        ...row,
+        claim_status: 'unclaimed',
+        added_by: user?.id,
+        created_at: new Date().toISOString()
+      }));
       
-      if (error) throw error;
+      // Insert batches of 50 records at a time to prevent payload size issues
+      const batchSize = 50;
+      const batches = [];
+      
+      for (let i = 0; i < dataToInsert.length; i += batchSize) {
+        batches.push(dataToInsert.slice(i, i + batchSize));
+      }
+      
+      let totalInserted = 0;
+      
+      for (let batch of batches) {
+        const { data, error } = await supabase
+          .from('tyre_suppliers_zim')
+          .insert(batch);
+        
+        if (error) throw error;
+        totalInserted += batch.length;
+      }
       
       toast({
         title: "Success",
-        description: `Successfully imported ${dataToImport.length} suppliers`,
+        description: `Successfully imported ${totalInserted} suppliers`,
       });
       
-      // Reset form
+      // Reset state
+      setCsvFile(null);
       setPreviewData([]);
       setColumnMappings([]);
+      setShowMapping(false);
       setShowPreview(false);
-      setCsvFile(null);
-      setGoogleSheetUrl('');
-      setActiveTab('url');
       
     } catch (error: any) {
       console.error("Error importing data:", error);
@@ -305,11 +373,22 @@ const SupplierImport: React.FC = () => {
     }
   };
 
+  // Go back to previous step
+  const goBack = () => {
+    if (showPreview) {
+      setShowPreview(false);
+      setShowMapping(true);
+    } else if (showMapping) {
+      setShowMapping(false);
+      setCsvFile(null);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Supplier Import Tool</h1>
+          <h1 className="text-2xl font-bold">Tyre Supplier Import Tool</h1>
           <Button
             variant="outline"
             onClick={() => navigate('/admin')}
@@ -318,12 +397,12 @@ const SupplierImport: React.FC = () => {
           </Button>
         </div>
         
-        {!showPreview ? (
+        {!showMapping && !showPreview && (
           <Card>
             <CardHeader>
-              <CardTitle>Import Suppliers</CardTitle>
+              <CardTitle>Import Supplier Data</CardTitle>
               <CardDescription>
-                Upload supplier data from a CSV file or Google Sheet
+                Upload a CSV file containing tyre supplier information
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -332,35 +411,11 @@ const SupplierImport: React.FC = () => {
                 onValueChange={setActiveTab}
                 className="space-y-4"
               >
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="url">Google Sheet URL</TabsTrigger>
-                  <TabsTrigger value="csv">CSV Upload</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-1">
+                  <TabsTrigger value="upload">CSV Upload</TabsTrigger>
                 </TabsList>
                 
-                <TabsContent value="url" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="sheet-url">Google Sheet URL</Label>
-                    <Input
-                      id="sheet-url"
-                      placeholder="https://docs.google.com/spreadsheets/d/..."
-                      value={googleSheetUrl}
-                      onChange={(e) => setGoogleSheetUrl(e.target.value)}
-                    />
-                    <p className="text-sm text-muted-foreground">
-                      Make sure the Google Sheet is publicly accessible or shared with view permissions
-                    </p>
-                  </div>
-                  
-                  <Button
-                    onClick={loadFromGoogleSheets}
-                    disabled={isLoading || !googleSheetUrl}
-                    className="w-full"
-                  >
-                    {isLoading ? "Loading..." : "Preview Data"}
-                  </Button>
-                </TabsContent>
-                
-                <TabsContent value="csv" className="space-y-4">
+                <TabsContent value="upload" className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="csv-file">Upload CSV File</Label>
                     <Input
@@ -370,116 +425,135 @@ const SupplierImport: React.FC = () => {
                       onChange={handleFileChange}
                     />
                     <p className="text-sm text-muted-foreground">
-                      The CSV file should have a header row with column names
+                      The CSV file should have headers and follow the expected format
                     </p>
                   </div>
                   
                   <Button
-                    onClick={loadFromCSV}
+                    onClick={processCSV}
                     disabled={isLoading || !csvFile}
                     className="w-full"
                   >
-                    {isLoading ? "Loading..." : "Preview Data"}
+                    {isLoading ? "Processing..." : "Upload and Process CSV"}
                   </Button>
                 </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
-        ) : (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Configure Field Mapping</CardTitle>
-                <CardDescription>
-                  Define which fields to import and how they should be mapped
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <DragDropContext onDragEnd={handleDragEnd}>
-                  <Droppable droppableId="field-mappings">
-                    {(provided) => (
-                      <div 
-                        className="space-y-2" 
-                        {...provided.droppableProps}
-                        ref={provided.innerRef}
-                      >
-                        <div className="grid grid-cols-12 gap-2 py-2 font-medium">
-                          <div className="col-span-1"></div>
-                          <div className="col-span-4">Original Field</div>
-                          <div className="col-span-4">Mapped Field Name</div>
-                          <div className="col-span-2">Required</div>
-                          <div className="col-span-1">Include</div>
-                        </div>
-                        
-                        {columnMappings.map((mapping, index) => (
-                          <Draggable 
-                            key={`${mapping.originalName}-${index}`}
-                            draggableId={`${mapping.originalName}-${index}`}
-                            index={index}
-                          >
-                            {(provided) => (
-                              <div
-                                className={`grid grid-cols-12 gap-2 items-center p-2 rounded-md ${mapping.required && !mapping.include ? 'bg-red-50' : 'bg-gray-50'}`}
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                              >
-                                <div 
-                                  className="col-span-1 cursor-move flex items-center" 
-                                  {...provided.dragHandleProps}
-                                >
-                                  ≡
-                                </div>
-                                <div className="col-span-4 truncate">{mapping.originalName}</div>
-                                <div className="col-span-4">
-                                  <Input
-                                    value={mapping.mappedName}
-                                    onChange={(e) => updateColumnMapping(index, 'mappedName', e.target.value)}
-                                    className="h-8"
-                                  />
-                                </div>
-                                <div className="col-span-2">
-                                  {mapping.required ? (
-                                    <span className="text-red-600 font-medium">Yes</span>
-                                  ) : (
-                                    <span className="text-gray-500">No</span>
-                                  )}
-                                </div>
-                                <div className="col-span-1 flex justify-center">
-                                  <Checkbox
-                                    checked={mapping.include}
-                                    onCheckedChange={(checked) => 
-                                      updateColumnMapping(index, 'include', !!checked)
-                                    }
-                                    disabled={mapping.required}
-                                  />
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
+        )}
+        
+        {showMapping && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Column Mapping</CardTitle>
+              <CardDescription>
+                Map CSV columns to database fields and configure import settings
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="field-mappings">
+                  {(provided) => (
+                    <div 
+                      className="space-y-2" 
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                    >
+                      <div className="grid grid-cols-12 gap-2 py-2 font-medium">
+                        <div className="col-span-1"></div>
+                        <div className="col-span-4">CSV Column</div>
+                        <div className="col-span-4">Database Field</div>
+                        <div className="col-span-2">Required</div>
+                        <div className="col-span-1">Include</div>
                       </div>
-                    )}
-                  </Droppable>
-                </DragDropContext>
-                
-                {columnMappings.some(m => m.required && !m.include) && (
-                  <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">
-                    Some required fields are not selected. You must include all required fields to proceed.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            
+                      
+                      {columnMappings.map((mapping, index) => (
+                        <Draggable 
+                          key={`${mapping.originalName}-${index}`}
+                          draggableId={`${mapping.originalName}-${index}`}
+                          index={index}
+                        >
+                          {(provided) => (
+                            <div
+                              className={`grid grid-cols-12 gap-2 items-center p-2 rounded-md ${mapping.required && !mapping.include ? 'bg-red-50' : 'bg-gray-50'}`}
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                            >
+                              <div 
+                                className="col-span-1 cursor-move flex items-center" 
+                                {...provided.dragHandleProps}
+                              >
+                                ≡
+                              </div>
+                              <div className="col-span-4 truncate">{mapping.originalName}</div>
+                              <div className="col-span-4">
+                                <Input
+                                  value={mapping.mappedName}
+                                  onChange={(e) => updateColumnMapping(index, 'mappedName', e.target.value)}
+                                  className="h-8"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                {mapping.required ? (
+                                  <span className="text-red-600 font-medium">Yes</span>
+                                ) : (
+                                  <span className="text-gray-500">No</span>
+                                )}
+                              </div>
+                              <div className="col-span-1 flex justify-center">
+                                <Checkbox
+                                  checked={mapping.include}
+                                  onCheckedChange={(checked) => 
+                                    updateColumnMapping(index, 'include', !!checked)
+                                  }
+                                  disabled={mapping.required}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+              
+              {columnMappings.some(m => m.required && !m.include) && (
+                <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">
+                  Required fields must be included to proceed with the import.
+                </div>
+              )}
+
+              <div className="flex gap-4 justify-end mt-6">
+                <Button
+                  variant="outline"
+                  onClick={goBack}
+                >
+                  Back
+                </Button>
+                <Button
+                  onClick={showDataPreview}
+                  disabled={isLoading || importButtonDisabled}
+                >
+                  Preview Data
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {showPreview && (
+          <>
             <Card>
               <CardHeader>
                 <CardTitle>Data Preview</CardTitle>
                 <CardDescription>
-                  Review the data before importing
+                  Review the processed data before importing
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="rounded-md border overflow-hidden">
+                <div className="rounded-md border overflow-hidden overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -495,47 +569,43 @@ const SupplierImport: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {previewData.slice(0, 5).map((row, rowIdx) => (
+                      {previewData.slice(0, 10).map((row, rowIdx) => (
                         <TableRow key={rowIdx}>
                           {columnMappings
                             .filter(mapping => mapping.include)
                             .sort((a, b) => a.order - b.order)
                             .map((mapping, cellIdx) => (
-                              <TableCell key={cellIdx}>
-                                {row[mapping.originalName] || '-'}
+                              <TableCell key={cellIdx} className="truncate max-w-[200px]">
+                                {row[mapping.mappedName] || '-'}
                               </TableCell>
                             ))}
                         </TableRow>
                       ))}
                     </TableBody>
-                    {previewData.length > 5 && (
+                    {previewData.length > 10 && (
                       <TableCaption>
-                        Showing 5 of {previewData.length} records
+                        Showing 10 of {previewData.length} records
                       </TableCaption>
                     )}
                   </Table>
                 </div>
+                
+                <div className="flex gap-4 justify-end mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={goBack}
+                  >
+                    Back to Mapping
+                  </Button>
+                  <Button
+                    onClick={importData}
+                    disabled={isLoading || previewData.length === 0}
+                  >
+                    {isLoading ? "Importing..." : `Import ${previewData.length} Records`}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
-            
-            <div className="flex gap-4 justify-end mt-6">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowPreview(false);
-                  setPreviewData([]);
-                  setColumnMappings([]);
-                }}
-              >
-                Back
-              </Button>
-              <Button
-                onClick={importData}
-                disabled={isLoading || importButtonDisabled}
-              >
-                {isLoading ? "Importing..." : `Import ${previewData.length} Records`}
-              </Button>
-            </div>
           </>
         )}
       </div>
@@ -543,4 +613,4 @@ const SupplierImport: React.FC = () => {
   );
 };
 
-export default SupplierImport;
+export default SupplierImportPage;

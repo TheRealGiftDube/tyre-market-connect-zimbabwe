@@ -314,12 +314,72 @@ export type Database = {
         }
         Relationships: []
       }
+      tyre_suppliers_zim: {
+        Row: {
+          added_by: string | null
+          branch: string | null
+          business_name: string
+          claim_status: string
+          claim_timestamp: string | null
+          contact_number: string
+          created_at: string
+          email: string | null
+          facebook: string | null
+          google_map_pin: string | null
+          id: string
+          instagram: string | null
+          physical_address: string | null
+          tiktok: string | null
+          website_url: string | null
+          whatsapp_number: string | null
+        }
+        Insert: {
+          added_by?: string | null
+          branch?: string | null
+          business_name: string
+          claim_status?: string
+          claim_timestamp?: string | null
+          contact_number: string
+          created_at?: string
+          email?: string | null
+          facebook?: string | null
+          google_map_pin?: string | null
+          id?: string
+          instagram?: string | null
+          physical_address?: string | null
+          tiktok?: string | null
+          website_url?: string | null
+          whatsapp_number?: string | null
+        }
+        Update: {
+          added_by?: string | null
+          branch?: string | null
+          business_name?: string
+          claim_status?: string
+          claim_timestamp?: string | null
+          contact_number?: string
+          created_at?: string
+          email?: string | null
+          facebook?: string | null
+          google_map_pin?: string | null
+          id?: string
+          instagram?: string | null
+          physical_address?: string | null
+          tiktok?: string | null
+          website_url?: string | null
+          whatsapp_number?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_claim_supplier: {
+        Args: { supplier_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       rfq_status: "pending" | "responded" | "closed"

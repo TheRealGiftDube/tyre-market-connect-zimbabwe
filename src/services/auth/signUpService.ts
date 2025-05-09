@@ -20,13 +20,14 @@ export const signUpService = {
       // Clean up existing auth state first
       cleanupAuthState();
       
-      // Check if a user already exists with this email
-      // This will help us link accounts later if needed
-      const { data: existingUserData } = await supabase
+      // Check if a user already exists with this email using a simplified query
+      const { data: existingUsers, error: queryError } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', email)
-        .maybeSingle();
+        .limit(1);
+        
+      const existingUserData = existingUsers && existingUsers.length > 0 ? existingUsers[0] : null;
         
       // Proceed with signup
       const { data, error } = await supabase.auth.signUp({

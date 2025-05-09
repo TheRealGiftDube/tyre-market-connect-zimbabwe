@@ -181,18 +181,21 @@ export const authService = {
     toast: (props: ToastProps) => void
   ) => {
     try {
+      // Fix: Simplify the query structure to prevent excessive type recursion
       // Check if a profile with this email already exists
-      const { data: existingProfile, error: profileError } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', email)
-        .not('id', 'eq', currentUserId)
-        .single();
+        .not('id', 'eq', currentUserId);
         
-      if (profileError) {
-        console.error('Error checking for existing profile:', profileError);
-        return { error: profileError };
+      if (fetchError) {
+        console.error('Error checking for existing profile:', fetchError);
+        return { error: fetchError };
       }
+      
+      // Get the first profile if any exists
+      const existingProfile = data && data.length > 0 ? data[0] : null;
       
       if (existingProfile) {
         // Update user metadata to store the connection

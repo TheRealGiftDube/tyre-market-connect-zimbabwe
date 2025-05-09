@@ -49,8 +49,8 @@ const Hero = () => {
           
           <div className="hidden lg:block">
             <img 
-              src="/tyre-hero-image.png" 
-              alt="Tyre selection" 
+              src="/lovable-uploads/84abe984-501b-4238-aa01-22c50304ab4b.png" 
+              alt="All About Tyres" 
               className="rounded-lg shadow-lg"
               onError={(e) => {
                 e.currentTarget.src = "https://placehold.co/600x400?text=Tyre+Image";

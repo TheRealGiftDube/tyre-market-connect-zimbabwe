@@ -49,7 +49,7 @@ const Hero = () => {
           
           <div className="hidden lg:block">
             <img 
-              src="/lovable-uploads/84abe984-501b-4238-aa01-22c50304ab4b.png" 
+              src="/lovable-uploads/e8929736-6c72-45af-bb65-b1a47d5e6269.png" 
               alt="All About Tyres" 
               className="rounded-lg shadow-lg"
               onError={(e) => {

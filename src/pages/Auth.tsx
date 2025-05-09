@@ -35,8 +35,9 @@ export default function AuthPage() {
   const [allRequirementsMet, setAllRequirementsMet] = useState(false);
 
   useEffect(() => {
+    // If user is already logged in, redirect to home page instead of dashboard
     if (user) {
-      navigate('/dashboard');
+      navigate('/');
     }
   }, [user, navigate]);
   
@@ -68,16 +69,28 @@ export default function AuthPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    if (mode === 'login') {
-      await signIn(email, password);
-    } else {
-      // Only proceed if all password requirements are met and passwords match
-      if (allRequirementsMet && passwordsMatch) {
-        await signUp(email, password, { full_name: fullName });
+    try {
+      if (mode === 'login') {
+        const result = await signIn(email, password);
+        if (!result.error) {
+          // Redirect to home page on successful login
+          navigate('/');
+        }
+      } else {
+        // Only proceed if all password requirements are met and passwords match
+        if (allRequirementsMet && passwordsMatch) {
+          const result = await signUp(email, password, { full_name: fullName });
+          if (!result.error && result.user) {
+            // Redirect to home page on successful signup
+            navigate('/');
+          }
+        }
       }
+    } catch (error) {
+      console.error('Authentication error:', error);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
   };
 
   // Import these functions from the PasswordStrengthChecker
@@ -116,6 +129,14 @@ export default function AuthPage() {
 
   const isSignupButtonDisabled = 
     mode === 'signup' && (!allRequirementsMet || !passwordsMatch || isSubmitting || isLoading);
+
+  // Pre-fill admin credentials for testing
+  useEffect(() => {
+    if (email === '' && mode === 'login') {
+      setEmail('mrwilliamchui@gmail.com');
+      setPassword('Qwerty12#');
+    }
+  }, [mode]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">

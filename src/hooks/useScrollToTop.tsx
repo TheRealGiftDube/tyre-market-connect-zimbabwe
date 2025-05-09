@@ -3,9 +3,9 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 /**
- * Component that scrolls the window to the top on route change
+ * Hook that scrolls the window to the top on route change
  */
-const ScrollToTop = () => {
+export const useScrollToTop = () => {
   const { pathname } = useLocation();
   
   useEffect(() => {
@@ -14,8 +14,6 @@ const ScrollToTop = () => {
       behavior: 'smooth'
     });
   }, [pathname]);
-  
-  return null;
 };
 
-export default ScrollToTop;
+export default useScrollToTop;

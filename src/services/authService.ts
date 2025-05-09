@@ -1,9 +1,13 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { cleanupAuthState } from '@/utils/authUtils';
-import { toast as toastFunction } from '@/hooks/use-toast';
 
-type ToastProps = Parameters<typeof toastFunction>[0];
+// Replace the complex type with an explicitly defined interface
+type ToastProps = {
+  title: string;
+  description?: string;
+  variant?: 'default' | 'destructive' | 'success' | 'info';
+};
 
 /**
  * Service for handling authentication operations
@@ -181,8 +185,7 @@ export const authService = {
     toast: (props: ToastProps) => void
   ) => {
     try {
-      // Fix: Further simplify the query to avoid excessive type recursion
-      // Use a more straightforward query construction
+      // Further simplify the query to avoid excessive type recursion
       const { data, error } = await supabase
         .from('profiles')
         .select('id')

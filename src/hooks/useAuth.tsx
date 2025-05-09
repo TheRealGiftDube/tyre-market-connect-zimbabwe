@@ -4,9 +4,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast'; // Updated import path
 import { authService } from '@/services/auth';
 import { AuthContextType } from '@/types/auth.types';
+import { ToastProps } from '@/services/auth/types'; // Import the ToastProps type
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -18,6 +19,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userRole, setUserRole] = useState<'admin' | 'seller' | 'buyer' | null>(null);
   const { toast } = useToast();
 
+  // Create a wrapper function to adapt our toast to the expected ToastProps
+  const showToast = (props: ToastProps) => {
+    // Map ToastProps variant to Toast variant
+    const adaptedVariant = props.variant === 'success' || props.variant === 'info' 
+      ? 'default' 
+      : props.variant || 'default';
+    
+    toast({
+      title: props.title,
+      description: props.description,
+      variant: adaptedVariant,
+    });
+  };
+
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await authService.fetchProfile(userId);
@@ -26,7 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUserRole(data.role);
     } catch (err) {
       console.error('Failed to fetch profile:', err);
-      toast({
+      showToast({
         title: 'Error loading profile',
         description: 'Could not load your profile information.',
         variant: 'destructive',
@@ -76,11 +91,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    return await authService.signIn(email, password, toast);
+    return await authService.signIn(email, password, showToast);
   };
 
   const signInWithGoogle = async () => {
-    return await authService.signInWithGoogle(toast);
+    return await authService.signInWithGoogle(showToast);
   };
 
   const signUp = async (
@@ -88,11 +103,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     password: string,
     userData?: Record<string, any>
   ) => {
-    return await authService.signUp(email, password, userData, toast);
+    return await authService.signUp(email, password, userData, showToast);
   };
 
   const signOut = async () => {
-    await authService.signOut(toast);
+    await authService.signOut(showToast);
     setUser(null);
     setSession(null);
     setProfile(null);
@@ -101,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const linkAccounts = async (email: string, provider: string) => {
     if (!user) return { error: new Error('No active user session') };
-    return await authService.linkAccounts(user.id, email, provider, toast);
+    return await authService.linkAccounts(user.id, email, provider, showToast);
   };
 
   const value: AuthContextType = {

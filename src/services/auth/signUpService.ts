@@ -23,9 +23,13 @@ export const signUpService = {
       // Check if a user already exists with this email using a direct query without complex typing
       let existingUserData = null;
       try {
-        const { data } = await supabase
-          .rpc('get_user_by_email', { email_param: email });
-        existingUserData = data && data.length > 0 ? data[0] : null;
+        // Using a simplified approach to avoid type recursion issues
+        const { data, error } = await supabase.rpc('get_user_by_email', { 
+          email_param: email 
+        });
+        
+        if (error) throw error;
+        existingUserData = data && data[0] ? data[0] : null;
       } catch (e) {
         // If the RPC function doesn't exist, fallback to a simple query
         const { data } = await supabase
